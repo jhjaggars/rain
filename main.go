@@ -10,31 +10,50 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, x float64) {
-	y := 758.0
+var maxX int = 1024
+var maxY float64 = 768.0
 
-	yspeed := rand.Intn(2) + 2
+func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 	startTime := time.Now()
-	initialPause := time.Duration(rand.Intn(400)) * time.Millisecond
+	initialPause := time.Duration(rand.Intn(jitter)) * time.Millisecond
 
 	for time.Since(startTime) < initialPause {
 		imd := <-in
 		out <- imd
 	}
+}
+
+func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
+	y := maxY - 30.0
+	x := rand.Intn(maxX)
+	topColor := pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
+	bottomColor := pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
+	width := float64(rand.Intn(3) + 1)
+	height := 30.0
+
+	yspeed := float64(rand.Intn(3) + 2)
+
+	wait(in, out, 3000)
 
 	for {
 		imd := <-in
-		imd.Color = pixel.RGB(1, 0, 0)
-		imd.Push(pixel.V(x, y))
-		imd.Color = pixel.RGB(0, 0, 1)
-		imd.Push(pixel.V(x, y+30))
-		imd.Line(2)
+		imd.Color = topColor
+		imd.Push(pixel.V(float64(x), y))
+		imd.Color = bottomColor
+		imd.Push(pixel.V(float64(x), y+height))
+		imd.Line(width)
 		out <- imd
 
 		if y <= 0 {
-			y = 758
+			x = rand.Intn(maxX)
+			y = maxY - height
+			yspeed = float64(rand.Intn(3) + 2)
+			topColor = pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
+			bottomColor = pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
+			width = float64(rand.Intn(3) + 1)
+			wait(in, out, 500)
 		} else {
-			y -= float64(yspeed)
+			y -= yspeed + (yspeed / y)
 		}
 	}
 }
@@ -52,11 +71,11 @@ func run() {
 
 	chans := make(map[chan *imdraw.IMDraw]chan *imdraw.IMDraw)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		in := make(chan *imdraw.IMDraw)
 		out := make(chan *imdraw.IMDraw)
 		chans[in] = out
-		go drop(in, out, float64(102*i))
+		go drop(in, out)
 	}
 
 	for !win.Closed() {
