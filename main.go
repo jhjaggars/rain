@@ -13,10 +13,6 @@ import (
 var maxX int
 var maxY float64
 
-var space = pixelgl.KeySpace
-var right = pixelgl.KeyRight
-var left = pixelgl.KeyLeft
-
 func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 	startTime := time.Now()
 	initialPause := time.Duration(rand.Intn(jitter)) * time.Millisecond
@@ -101,15 +97,15 @@ func run() {
 			imd.Draw(win)
 		}
 
-		if win.JustPressed(space) {
+		if win.JustPressed(pixelgl.KeySpace) {
 			paused = !paused
 		}
 
-		if win.JustPressed(right) {
+		if win.JustPressed(pixelgl.KeyUp) {
 			addDrop(chans)
 		}
 
-		if win.JustPressed(left) {
+		if win.JustPressed(pixelgl.KeyDown) {
 			for k, _ := range chans {
 				close(k)
 				delete(chans, k)
