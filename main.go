@@ -27,7 +27,7 @@ func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 	}
 }
 
-func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
+func drop(in, out chan *imdraw.IMDraw) {
 	height := float64(rand.Intn(30) + 10)
 	y := maxY - height
 	x := rand.Intn(maxX)
@@ -38,11 +38,7 @@ func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
 
 	wait(in, out, 3000)
 
-	for {
-		imd := <-in
-		if imd == nil {
-			return
-		}
+	for imd := range in {
 		imd.Color = topColor
 		imd.Push(pixel.V(float64(x), y))
 		imd.Color = bottomColor
@@ -115,7 +111,7 @@ func run() {
 
 		if win.JustPressed(left) {
 			for k, _ := range chans {
-				k <- nil
+				close(k)
 				delete(chans, k)
 				break
 			}
@@ -123,7 +119,7 @@ func run() {
 
 		if win.JustPressed(pixelgl.KeyR) {
 			for k, _ := range chans {
-				k <- nil
+				close(k)
 				delete(chans, k)
 			}
 		}
