@@ -10,8 +10,9 @@ import (
 	"golang.org/x/image/colornames"
 )
 
-var maxX int = 1024
-var maxY float64 = 768.0
+var maxX int
+var maxY float64
+
 var space = pixelgl.KeySpace
 var right = pixelgl.KeyRight
 var left = pixelgl.KeyLeft
@@ -27,7 +28,7 @@ func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 }
 
 func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
-	height := 30.0
+	height := float64(rand.Intn(30) + 10)
 	y := maxY - height
 	x := rand.Intn(maxX)
 	topColor := pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
@@ -71,10 +72,15 @@ func addDrop(chans map[chan *imdraw.IMDraw]chan *imdraw.IMDraw) {
 }
 
 func run() {
+	monX, monY := pixelgl.PrimaryMonitor().Size()
+	maxX = int(monX)
+	maxY = monY
+
 	cfg := pixelgl.WindowConfig{
-		Title:  "Rain-bow",
-		Bounds: pixel.R(0, 0, float64(maxX), maxY),
-		VSync:  true,
+		Title:   "Rain-bow",
+		Bounds:  pixel.R(0, 0, float64(maxX), maxY),
+		VSync:   true,
+		Monitor: pixelgl.PrimaryMonitor(),
 	}
 	paused := false
 	win, err := pixelgl.NewWindow(cfg)
@@ -112,6 +118,13 @@ func run() {
 				k <- nil
 				delete(chans, k)
 				break
+			}
+		}
+
+		if win.JustPressed(pixelgl.KeyR) {
+			for k, _ := range chans {
+				k <- nil
+				delete(chans, k)
 			}
 		}
 
