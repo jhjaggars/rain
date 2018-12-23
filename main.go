@@ -12,7 +12,9 @@ import (
 
 var maxX int = 1024
 var maxY float64 = 768.0
-var k = pixelgl.KeySpace
+var space = pixelgl.KeySpace
+var right = pixelgl.KeyRight
+var left = pixelgl.KeyLeft
 
 func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 	startTime := time.Now()
@@ -37,6 +39,9 @@ func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
 
 	for {
 		imd := <-in
+		if imd == nil {
+			return
+		}
 		imd.Color = topColor
 		imd.Push(pixel.V(float64(x), y))
 		imd.Color = bottomColor
@@ -53,9 +58,16 @@ func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
 			width = float64(rand.Intn(3) + 1)
 			wait(in, out, 500)
 		} else {
-			y -= yspeed + ((yspeed + 10) / y)
+			y -= yspeed + ((yspeed + 100) / y)
 		}
 	}
+}
+
+func addDrop(chans map[chan *imdraw.IMDraw]chan *imdraw.IMDraw) {
+	in := make(chan *imdraw.IMDraw)
+	out := make(chan *imdraw.IMDraw)
+	chans[in] = out
+	go drop(in, out)
 }
 
 func run() {
@@ -72,12 +84,7 @@ func run() {
 
 	chans := make(map[chan *imdraw.IMDraw]chan *imdraw.IMDraw)
 
-	for i := 0; i < 40; i++ {
-		in := make(chan *imdraw.IMDraw)
-		out := make(chan *imdraw.IMDraw)
-		chans[in] = out
-		go drop(in, out)
-	}
+	addDrop(chans)
 
 	for !win.Closed() {
 
@@ -92,8 +99,20 @@ func run() {
 			imd.Draw(win)
 		}
 
-		if win.JustPressed(k) {
+		if win.JustPressed(space) {
 			paused = !paused
+		}
+
+		if win.JustPressed(right) {
+			addDrop(chans)
+		}
+
+		if win.JustPressed(left) {
+			for k, _ := range chans {
+				k <- nil
+				delete(chans, k)
+				break
+			}
 		}
 
 		win.Update()
