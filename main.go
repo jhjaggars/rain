@@ -12,6 +12,7 @@ import (
 
 var maxX int = 1024
 var maxY float64 = 768.0
+var k = pixelgl.KeySpace
 
 func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 	startTime := time.Now()
@@ -24,13 +25,12 @@ func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 }
 
 func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
-	y := maxY - 30.0
+	height := 30.0
+	y := maxY - height
 	x := rand.Intn(maxX)
 	topColor := pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
 	bottomColor := pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
 	width := float64(rand.Intn(3) + 1)
-	height := 30.0
-
 	yspeed := float64(rand.Intn(3) + 2)
 
 	wait(in, out, 3000)
@@ -53,17 +53,18 @@ func drop(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw) {
 			width = float64(rand.Intn(3) + 1)
 			wait(in, out, 500)
 		} else {
-			y -= yspeed + (yspeed / y)
+			y -= yspeed + ((yspeed + 10) / y)
 		}
 	}
 }
 
 func run() {
 	cfg := pixelgl.WindowConfig{
-		Title:  "Pixel Rocks!",
-		Bounds: pixel.R(0, 0, 1024, 768),
+		Title:  "Rain-bow",
+		Bounds: pixel.R(0, 0, float64(maxX), maxY),
 		VSync:  true,
 	}
+	paused := false
 	win, err := pixelgl.NewWindow(cfg)
 	if err != nil {
 		panic(err)
@@ -71,7 +72,7 @@ func run() {
 
 	chans := make(map[chan *imdraw.IMDraw]chan *imdraw.IMDraw)
 
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 40; i++ {
 		in := make(chan *imdraw.IMDraw)
 		out := make(chan *imdraw.IMDraw)
 		chans[in] = out
@@ -80,14 +81,21 @@ func run() {
 
 	for !win.Closed() {
 
-		imd := imdraw.New(nil)
+		if !paused {
+			imd := imdraw.New(nil)
 
-		for in, out := range chans {
-			in <- imd
-			imd = <-out
+			for in, out := range chans {
+				in <- imd
+				imd = <-out
+			}
+			win.Clear(colornames.Black)
+			imd.Draw(win)
 		}
-		win.Clear(colornames.Black)
-		imd.Draw(win)
+
+		if win.JustPressed(k) {
+			paused = !paused
+		}
+
 		win.Update()
 	}
 }
