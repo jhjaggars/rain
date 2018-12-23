@@ -51,6 +51,15 @@ func (drop *Drop) Fall(accel float64) {
 	drop.velocity *= accel
 }
 
+func (drop *Drop) Draw(imd *imdraw.IMDraw) *imdraw.IMDraw {
+	imd.Color = drop.top
+	imd.Push(pixel.V(drop.x, drop.y))
+	imd.Color = drop.bot
+	imd.Push(pixel.V(drop.x, drop.y+drop.height))
+	imd.Line(drop.width)
+	return imd
+}
+
 func NewDrop(maxX, maxY float64) (drop *Drop) {
 	drop = &Drop{
 		height:   roll(10, 70),
@@ -70,12 +79,7 @@ func drop(in, out chan *imdraw.IMDraw) {
 	wait(in, out, 500)
 
 	for imd := range in {
-		imd.Color = drop.top
-		imd.Push(pixel.V(drop.x, drop.y))
-		imd.Color = drop.bot
-		imd.Push(pixel.V(drop.x, drop.y+drop.height))
-		imd.Line(drop.width)
-		out <- imd
+		out <- drop.Draw(imd)
 
 		if drop.y <= 0 {
 			drop = NewDrop(maxX, maxY)
@@ -95,10 +99,14 @@ func addDrop(chans map[chan *imdraw.IMDraw]chan *imdraw.IMDraw) int {
 }
 
 func getTimes(win *pixelgl.Window) int {
-	if win.Pressed(pixelgl.KeyLeftShift) || win.Pressed(pixelgl.KeyRightShift) {
+	switch {
+	case win.Pressed(pixelgl.KeyLeftControl), win.Pressed(pixelgl.KeyRightControl):
+		return 100
+	case win.Pressed(pixelgl.KeyLeftShift), win.Pressed(pixelgl.KeyRightShift):
 		return 10
+	default:
+		return 1
 	}
-	return 1
 }
 
 func run() {
