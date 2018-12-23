@@ -14,7 +14,7 @@ import (
 	"golang.org/x/image/font/basicfont"
 )
 
-var maxX int
+var maxX float64
 var maxY float64
 var accel = 1.03
 
@@ -28,36 +28,60 @@ func wait(in chan *imdraw.IMDraw, out chan *imdraw.IMDraw, jitter int) {
 	}
 }
 
+func randColor(alpha float64) pixel.RGBA {
+	return pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64()).Mul(pixel.Alpha(alpha))
+}
+
+func roll(min, max int) float64 {
+	return float64(rand.Intn(max-min) + min)
+}
+
+type Drop struct {
+	height   float64
+	width    float64
+	x        float64
+	y        float64
+	top      pixel.RGBA
+	bot      pixel.RGBA
+	velocity float64
+}
+
+func (drop *Drop) Fall(accel float64) {
+	drop.y -= drop.velocity
+	drop.velocity *= accel
+}
+
+func NewDrop(maxX, maxY float64) (drop *Drop) {
+	drop = &Drop{
+		height:   roll(10, 70),
+		width:    roll(1, 4),
+		x:        float64(rand.Intn(int(maxX))),
+		top:      randColor(0.9),
+		bot:      randColor(0.1),
+		velocity: roll(2, 5),
+	}
+	drop.y = maxY - drop.height
+	return
+}
+
 func drop(in, out chan *imdraw.IMDraw) {
-	height := float64(rand.Intn(60) + 10)
-	y := maxY - height
-	x := rand.Intn(maxX)
-	topColor := pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
-	bottomColor := pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
-	width := float64(rand.Intn(3) + 1)
-	yspeed := float64(rand.Intn(3) + 2)
+	drop := NewDrop(maxX, maxY)
 
 	wait(in, out, 500)
 
 	for imd := range in {
-		imd.Color = topColor
-		imd.Push(pixel.V(float64(x), y))
-		imd.Color = bottomColor
-		imd.Push(pixel.V(float64(x), y+height))
-		imd.Line(width)
+		imd.Color = drop.top
+		imd.Push(pixel.V(drop.x, drop.y))
+		imd.Color = drop.bot
+		imd.Push(pixel.V(drop.x, drop.y+drop.height))
+		imd.Line(drop.width)
 		out <- imd
 
-		if y <= 0 {
-			x = rand.Intn(maxX)
-			y = maxY - height
-			yspeed = float64(rand.Intn(3) + 2)
-			topColor = pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
-			bottomColor = pixel.RGB(rand.Float64(), rand.Float64(), rand.Float64())
-			width = float64(rand.Intn(3) + 1)
+		if drop.y <= 0 {
+			drop = NewDrop(maxX, maxY)
 			wait(in, out, 500)
 		} else {
-			y -= yspeed
-			yspeed *= accel
+			drop.Fall(accel)
 		}
 	}
 }
@@ -79,17 +103,18 @@ func getTimes(win *pixelgl.Window) int {
 
 func run() {
 	monX, monY := pixelgl.PrimaryMonitor().Size()
-	maxX = int(monX)
+	maxX = monX
 	maxY = monY
 	paused := false
 	chans := make(map[chan *imdraw.IMDraw]chan *imdraw.IMDraw)
 	atlas := text.NewAtlas(basicfont.Face7x13, text.ASCII)
 	basicText := text.New(pixel.V(0, 0), atlas)
 	numDrops := 0
+	alpha := 1.0
 
 	cfg := pixelgl.WindowConfig{
 		Title:   "Rain-bow",
-		Bounds:  pixel.R(0, 0, float64(maxX), maxY),
+		Bounds:  pixel.R(0, 0, maxX, maxY),
 		VSync:   true,
 		Monitor: pixelgl.PrimaryMonitor(),
 	}
@@ -112,8 +137,10 @@ func run() {
 			}
 			win.Clear(colornames.Black)
 			basicText.Clear()
-			fmt.Fprintf(basicText, "%d %f", numDrops, accel)
-			basicText.Draw(win, pixel.IM.Scaled(basicText.Orig, 2))
+			alpha = math.Max(0.0, alpha-0.004)
+			basicText.Color = pixel.Alpha(alpha)
+			fmt.Fprintf(basicText, "%d %.2f", numDrops, accel)
+			basicText.Draw(win, pixel.IM.Scaled(basicText.Orig, 3))
 			imd.Draw(win)
 		}
 
@@ -125,6 +152,7 @@ func run() {
 			for i := 0; i < getTimes(win); i++ {
 				numDrops += addDrop(chans)
 			}
+			alpha = 1.0
 		}
 
 		if win.JustPressed(pixelgl.KeyDown) {
@@ -136,14 +164,17 @@ func run() {
 				}
 				numDrops = int(math.Max(0, float64(numDrops-1)))
 			}
+			alpha = 1.0
 		}
 
 		if win.JustPressed(pixelgl.KeyRight) {
 			accel += 0.01
+			alpha = 1.0
 		}
 
 		if win.JustPressed(pixelgl.KeyLeft) {
 			accel -= 0.01
+			alpha = 1.0
 		}
 
 		if win.JustPressed(pixelgl.KeyR) {
@@ -152,6 +183,7 @@ func run() {
 				delete(chans, k)
 			}
 			numDrops = 0
+			alpha = 1.0
 		}
 
 		win.Update()
