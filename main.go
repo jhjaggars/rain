@@ -36,6 +36,7 @@ func roll(min, max int) float64 {
 	return float64(rand.Intn(max-min) + min)
 }
 
+// Drop represents a single drop on screen
 type Drop struct {
 	height   float64
 	width    float64
@@ -46,11 +47,13 @@ type Drop struct {
 	velocity float64
 }
 
+// Fall moves a Drop downards and adjusts velocity
 func (drop *Drop) Fall(accel float64) {
 	drop.y -= drop.velocity
 	drop.velocity *= accel
 }
 
+// Draw pushes pixels to the IMDraw object
 func (drop *Drop) Draw(imd *imdraw.IMDraw) *imdraw.IMDraw {
 	imd.Color = drop.top
 	imd.Push(pixel.V(drop.x, drop.y))
@@ -60,6 +63,7 @@ func (drop *Drop) Draw(imd *imdraw.IMDraw) *imdraw.IMDraw {
 	return imd
 }
 
+// NewDrop constructs a new Drop
 func NewDrop(maxX, maxY float64) (drop *Drop) {
 	drop = &Drop{
 		height:   roll(10, 70),
@@ -73,7 +77,7 @@ func NewDrop(maxX, maxY float64) (drop *Drop) {
 	return
 }
 
-func drop(in, out chan *imdraw.IMDraw) {
+func rundrop(in, out chan *imdraw.IMDraw) {
 	drop := NewDrop(maxX, maxY)
 
 	wait(in, out, 500)
@@ -94,7 +98,7 @@ func addDrop(chans map[chan *imdraw.IMDraw]chan *imdraw.IMDraw) int {
 	in := make(chan *imdraw.IMDraw)
 	out := make(chan *imdraw.IMDraw)
 	chans[in] = out
-	go drop(in, out)
+	go rundrop(in, out)
 	return 1
 }
 
@@ -165,7 +169,7 @@ func run() {
 
 		if win.JustPressed(pixelgl.KeyDown) {
 			for i := 0; i < getTimes(win); i++ {
-				for k, _ := range chans {
+				for k := range chans {
 					close(k)
 					delete(chans, k)
 					break
@@ -186,7 +190,7 @@ func run() {
 		}
 
 		if win.JustPressed(pixelgl.KeyR) {
-			for k, _ := range chans {
+			for k := range chans {
 				close(k)
 				delete(chans, k)
 			}
