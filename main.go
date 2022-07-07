@@ -156,6 +156,10 @@ func run() {
 			imd.Draw(win)
 		}
 
+		if win.JustPressed(pixelgl.KeyQ) {
+			return
+		}
+
 		if win.JustPressed(pixelgl.KeySpace) {
 			paused = !paused
 		}
